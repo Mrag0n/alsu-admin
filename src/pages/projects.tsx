@@ -1,83 +1,125 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Form, Input, message, Modal, Upload } from 'antd/lib';
-import { PlusOutlined } from '@ant-design/icons/lib';
+import { Button, Form, message, Modal } from 'antd/lib';
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
+  getDoc,
   updateDoc,
+  setDoc,
+  increment,
+  DocumentReference,
 } from 'firebase/firestore';
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from 'firebase/storage';
+
+import { getStorage, ref, uploadBytes, deleteObject } from 'firebase/storage';
+
 import { db } from '@lib/firebase';
-import { Document } from '@types/document';
+import { Document } from '@/types/document';
 import Table from '@components/Table';
+import ModalForm from '@components/ModalForm';
+
+const CREATE_MODE = 'create';
+const UPDATE_MODE = 'update';
+
+type Mode = 'create' | 'update';
+
+interface ModalState {
+  title: string;
+  mode: Mode;
+}
+
+interface FileReference {
+  count: number;
+}
 
 const Projects = () => {
   const [projects, setProjects] = useState<Document[]>([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [modalState, setModalState] = useState<ModalState | null>(null);
   const [currentProject, setCurrentProject] = useState<Document | null>(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
     fetchDocuments();
   }, []);
 
+  // Function to create a valid Firestore document ID from a file path
+  const sanitizeFilePath = (filePath: string): string => {
+    return filePath.replace(/[\/\s]+/g, '_'); // Replace slashes and spaces with underscores
+  };
+
+  // Function to increment file reference count
+  const incrementFileReference = async (filePath: string): Promise<void> => {
+    const sanitizedPath = sanitizeFilePath(filePath);
+    const fileRef = doc(
+      db,
+      'fileRefs',
+      sanitizedPath,
+    ) as DocumentReference<FileReference>;
+    await setDoc(fileRef, { count: increment(1) }, { merge: true });
+  };
+
+  // Function to decrement file reference count and delete file if count is zero
+  const decrementFileReference = async (filePath: string): Promise<void> => {
+    const sanitizedPath = sanitizeFilePath(filePath);
+    const fileRef = doc(
+      db,
+      'fileRefs',
+      sanitizedPath,
+    ) as DocumentReference<FileReference>;
+    const fileSnap = await getDoc(fileRef);
+    if (fileSnap.exists() && fileSnap.data().count <= 1) {
+      const storage = getStorage();
+      const fileStorageRef = ref(storage, filePath); // Original path for Firebase Storage
+      await deleteObject(fileStorageRef);
+      await deleteDoc(fileRef);
+    } else if (fileSnap.exists()) {
+      await updateDoc(fileRef, { count: increment(-1) });
+    }
+  };
+
   const fetchDocuments = async () => {
     const querySnapshot = await getDocs(collection(db, 'projects'));
-    const docsArray = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Document),
-    }));
+    const docsArray = querySnapshot.docs.map((doc) => {
+      const data = doc.data() as Document; // Cast the document data to your Document type
+      // Ensure there's no ID conflict
+      return {
+        ...data,
+        id: doc.id, // Explicitly set the document's ID, ensuring it takes precedence
+      };
+    });
     setProjects(docsArray);
   };
 
-  const uploadImage = async (file) => {
+  const uploadImage = async (file: File): Promise<string> => {
     const storage = getStorage();
     const storageRef = ref(storage, `images/${file.name}`);
     await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
+    return `images/${file.name}`; // Return the path as the identifier
   };
 
   const showModal = () => {
-    setIsModalVisible(true);
+    setModalState({
+      title: 'Create Project',
+      mode: CREATE_MODE,
+    });
   };
 
   const showEditModal = (project: Document) => {
     form.setFieldsValue(project);
     setCurrentProject(project);
-    setIsEditModalVisible(true);
+    setModalState({
+      title: 'Create Project',
+      mode: UPDATE_MODE,
+    });
   };
 
   const handleCancel = () => {
     form.resetFields();
-    setIsModalVisible(false);
-    setIsEditModalVisible(false);
-  };
-
-  const handleAdd = async (values: Document) => {
-    try {
-      if (selectedFile) {
-        values.imageUrl = await uploadImage(selectedFile);
-      }
-      await addDoc(collection(db, 'projects'), values);
-      message.success('Project added successfully');
-      form.resetFields();
-      setIsModalVisible(false);
-      fetchDocuments();
-    } catch (error) {
-      console.error('Error adding document: ', error);
-      message.error('Failed to add project');
-    }
+    setSelectedFile(null);
+    setModalState(null);
   };
 
   const handleEdit = (id: string) => {
@@ -87,31 +129,44 @@ const Projects = () => {
     }
   };
 
-  const handleUpdate = async (values) => {
+  const handleAdd = async (values: Document) => {
+    try {
+      if (selectedFile) {
+        values.imageUrl = await uploadImage(selectedFile);
+        await incrementFileReference(values.imageUrl);
+      }
+      await addDoc(collection(db, 'projects'), values);
+      message.success('Project added successfully');
+      form.resetFields();
+      setSelectedFile(null);
+      handleCancel();
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Error adding document:', error);
+      message.error('Failed to add project');
+    }
+  };
+
+  const handleUpdate = async (values: Document) => {
     if (!currentProject) return;
 
     try {
       let imageUrl = currentProject.imageUrl;
 
-      // Check if a new file has been selected
       if (selectedFile) {
-        // Delete the old file from storage if it exists
         if (imageUrl) {
-          const oldRef = ref(getStorage(), imageUrl);
-          await deleteObject(oldRef).catch((error) =>
-            console.error('Failed to delete old image:', error),
-          );
+          await decrementFileReference(imageUrl); // Decrement the old image reference
         }
-
-        // Upload the new file and get the URL
         imageUrl = await uploadImage(selectedFile);
         values.imageUrl = imageUrl;
+        await incrementFileReference(imageUrl); // Increment the new image reference
       }
 
       await updateDoc(doc(db, 'projects', currentProject.id), values);
       message.success('Project updated successfully');
       form.resetFields();
-      setIsEditModalVisible(false);
+      setSelectedFile(null);
+      handleCancel();
       fetchDocuments();
     } catch (error) {
       console.error('Error updating document:', error);
@@ -122,73 +177,38 @@ const Projects = () => {
   const handleDelete = (id: string) => {
     Modal.confirm({
       title: 'Are you sure you want to delete this project?',
-      content: 'Once deleted, the project cannot be recovered.',
+      content:
+        'Once deleted, the project cannot be recovered along with its image.',
       okText: 'Yes, delete it',
       okType: 'danger',
       cancelText: 'No',
       onOk: async () => {
+        const projectToDelete = projects.find((p) => p.id === id);
+        if (!projectToDelete) {
+          message.error('Project not found.');
+          return;
+        }
+
+        if (projectToDelete.imageUrl) {
+          await decrementFileReference(projectToDelete.imageUrl); // Decrement the file reference
+        }
+
         try {
           await deleteDoc(doc(db, 'projects', id));
-          message.success('Project deleted successfully');
-          fetchDocuments();
+          message.success('Project deleted successfully.');
+          await fetchDocuments();
         } catch (error) {
-          message.error('Error deleting project');
-          console.error('Error deleting document: ', error);
+          console.error('Error deleting project:', error);
+          message.error('Error deleting project.');
         }
       },
     });
   };
 
-  function formFields() {
-    return (
-      <>
-        <Form.Item
-          name="title"
-          label="Title"
-          rules={[
-            {
-              required: true,
-              message: 'Please input the title of the project!',
-            },
-          ]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="year"
-          label="Year"
-          rules={[
-            { required: true, message: 'Please input the project year!' },
-          ]}
-        >
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="desc"
-          label="Description"
-          rules={[
-            {
-              required: true,
-              message: 'Please input the project description!',
-            },
-          ]}
-        >
-          <Input.TextArea />
-        </Form.Item>
-        <Form.Item label="Project Image">
-          <Input
-            type="file"
-            onChange={(event) => setSelectedFile(event.target.files[0])}
-          />
-        </Form.Item>
-        <Form.Item>
-          <Button key="submit" type="primary" htmlType="submit">
-            Submit
-          </Button>
-        </Form.Item>
-      </>
-    );
-  }
+  const actionsMap = {
+    [CREATE_MODE]: handleAdd,
+    [UPDATE_MODE]: handleUpdate,
+  };
 
   return (
     <>
@@ -196,26 +216,18 @@ const Projects = () => {
         Add Project
       </Button>
       <Table documents={projects} onEdit={handleEdit} onDelete={handleDelete} />
-      <Modal
-        title="Add a New Project"
-        open={isModalVisible}
-        onCancel={handleCancel}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleAdd} layout="vertical">
-          {formFields()}
-        </Form>
-      </Modal>
-      <Modal
-        title="Edit Project"
-        open={isEditModalVisible}
-        onCancel={handleCancel}
-        footer={null}
-      >
-        <Form form={form} onFinish={handleUpdate} layout="vertical">
-          {formFields()}
-        </Form>
-      </Modal>
+      {Boolean(modalState) && (
+        <ModalForm
+          title={modalState?.title || ''}
+          form={form}
+          handleCancel={handleCancel}
+          setSelectedFile={setSelectedFile}
+          onFinish={
+            (modalState && actionsMap[modalState.mode]) ||
+            actionsMap[CREATE_MODE]
+          }
+        />
+      )}
     </>
   );
 };

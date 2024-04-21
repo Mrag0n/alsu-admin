@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Table, Button, Space } from 'antd/lib';
-import { Document } from '@types/document';
+import { Document } from '@/types/document';
 
 interface TablePropsI {
   documents: Document[];
