@@ -43,7 +43,14 @@ const DocumentsList = ({
     [onEdit, onDelete],
   );
 
-  return <Table dataSource={documents} columns={columns} rowKey="id" />;
+  return (
+    <Table
+      dataSource={documents}
+      columns={columns}
+      rowKey="id"
+      pagination={{ pageSize: 10 }}
+    />
+  );
 };
 
 export default DocumentsList;
