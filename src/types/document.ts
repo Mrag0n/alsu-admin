@@ -3,4 +3,5 @@ export interface Document {
   title: string;
   year: string;
   desc: string;
+  imageUrl: string;
 }

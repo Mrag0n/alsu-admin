@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { Layout, Menu, Button } from 'antd/lib';
+import { Layout, Menu } from 'antd/lib';
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -15,7 +15,6 @@ interface BasicLayoutProps {
 const BasicLayout: React.FC<BasicLayoutProps> = ({ children }) => {
   const router = useRouter();
 
-  // Определяем элементы меню с помощью свойства `items`
   const items = [
     {
       key: '/',
@@ -35,23 +34,21 @@ const BasicLayout: React.FC<BasicLayoutProps> = ({ children }) => {
       label: 'Settings',
       onClick: () => router.push('/settings'),
     },
-    // Добавьте дополнительные элементы по мере необходимости
   ];
 
-  // Вспомогательная функция для получения текущего активного ключа
   const getSelectedKeys = (): string[] => {
     return [router.pathname];
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout>
       <Header className="header"></Header>
       <Layout>
         <Sider width={200} className="site-layout-background">
           <Menu
             mode="inline"
             selectedKeys={getSelectedKeys()}
-            items={items} // используем `items` вместо `children`
+            items={items}
             style={{ height: '100%', borderRight: 0 }}
           />
         </Sider>
