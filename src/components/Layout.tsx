@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 import { Layout, Menu } from 'antd/lib';
 import {
   DashboardOutlined,
@@ -7,7 +8,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons/lib';
 
-const { Header, Sider } = Layout;
+const { Content, Footer, Sider } = Layout;
 
 interface BasicLayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ interface BasicLayoutProps {
 
 const BasicLayout: React.FC<BasicLayoutProps> = ({ children }) => {
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
 
   const items = [
     {
@@ -37,23 +39,45 @@ const BasicLayout: React.FC<BasicLayoutProps> = ({ children }) => {
     },
   ];
 
-  const getSelectedKeys = (): string[] => {
-    return [router.pathname];
-  };
+  const logoSize = collapsed ? 40 : 60;
 
   return (
-    <Layout>
-      <Header className="header"></Header>
+    <Layout style={{ minHeight: '100vh' }}>
       <Layout>
-        <Sider width={200} className="site-layout-background">
+        <Sider
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              justifyContent: 'center',
+              padding: 24,
+            }}
+          >
+            <Image
+              width={logoSize}
+              height={logoSize}
+              src="/images/logo.svg"
+              alt="logo"
+            />
+          </div>
           <Menu
+            theme="dark"
+            defaultSelectedKeys={['1']}
             mode="inline"
-            selectedKeys={getSelectedKeys()}
             items={items}
-            style={{ height: '100%', borderRight: 0 }}
           />
         </Sider>
-        <Layout>{children}</Layout>
+        <Layout>
+          <Content style={{ margin: '0 16px' }}>{children}</Content>
+          <Footer style={{ textAlign: 'center' }}>
+            Alsu ©{new Date().getFullYear()} Created by Alsu Agency
+          </Footer>
+        </Layout>
       </Layout>
     </Layout>
   );

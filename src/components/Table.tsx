@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Table, Button, Space } from 'antd/lib';
+import { Table, Button, Space, Tag } from 'antd/lib';
 import { Document } from '@/types/document';
 
 interface TablePropsI {
@@ -21,6 +21,32 @@ const DocumentsList = ({
         key: 'title',
       },
       {
+        title: 'Description',
+        dataIndex: 'desc',
+        key: 'desc',
+        ellipsis: true,
+      },
+      {
+        title: 'Tags',
+        dataIndex: 'tags',
+        key: 'tags',
+        render: (tags: string[]) => (
+          <span>
+            {tags?.map((tag) => {
+              let color = tag.length > 5 ? 'geekblue' : 'green';
+              if (tag === 'loser') {
+                color = 'volcano';
+              }
+              return (
+                <Tag color={color} key={tag}>
+                  {tag.toUpperCase()}
+                </Tag>
+              );
+            })}
+          </span>
+        ),
+      },
+      {
         title: 'Year',
         dataIndex: 'year',
         key: 'year',
@@ -28,6 +54,7 @@ const DocumentsList = ({
       {
         title: 'Actions',
         key: 'actions',
+        align: 'right',
         render: (_: any, record: Document) => (
           <Space size="middle">
             <Button onClick={() => onEdit(record.id)} type="link">
@@ -48,7 +75,7 @@ const DocumentsList = ({
       dataSource={documents}
       columns={columns}
       rowKey="id"
-      pagination={{ pageSize: 10 }}
+      pagination={{ pageSize: 8 }}
     />
   );
 };

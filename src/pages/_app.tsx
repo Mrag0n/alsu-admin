@@ -1,10 +1,11 @@
 import React from 'react';
 import { ConfigProvider } from 'antd/lib';
-import { AuthProvider, useAuth } from '@lib/authContext'; // Make sure useAuth is exported from authContext
+import { AuthProvider, useAuth } from '@lib/authContext';
 import type { AppProps } from 'next/app';
 import Layout from '@components/Layout';
 import theme from '@theme/themeConfig';
-import { useRouter } from 'next/router'; // Import useRouter
+import { useRouter } from 'next/router';
+import '@styles/reset.css';
 
 const App = ({ Component, pageProps, router }: AppProps) => {
   return (

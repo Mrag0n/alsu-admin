@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Form, message, Modal } from 'antd/lib';
+import { Button, Form, Layout, message, Modal } from 'antd/lib';
 import {
   addDoc,
   collection,
@@ -212,10 +212,24 @@ const Projects = () => {
 
   return (
     <>
-      <Button type="primary" onClick={showModal}>
-        Add Project
-      </Button>
-      <Table documents={projects} onEdit={handleEdit} onDelete={handleDelete} />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          padding: '16px 0',
+        }}
+      >
+        <Button type="primary" onClick={showModal}>
+          Add Project
+        </Button>
+      </div>
+      <div style={{ maxHeight: '100%' }}>
+        <Table
+          documents={projects}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </div>
       {Boolean(modalState) && (
         <ModalForm
           title={modalState?.title || ''}

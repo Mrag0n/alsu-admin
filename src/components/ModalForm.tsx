@@ -1,6 +1,16 @@
 import React, { SetStateAction } from 'react';
-import { Button, Form, Input, Modal, FormInstance } from 'antd/lib';
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  FormInstance,
+  Select,
+  Tag,
+} from 'antd/lib';
 import { Document } from '@/types/document';
+
+const { Option } = Select;
 
 interface ModalFormProps {
   title: string;
@@ -9,6 +19,12 @@ interface ModalFormProps {
   handleCancel: () => void;
   setSelectedFile: SetStateAction<any>;
 }
+
+const tagColors = {
+  branding: 'red',
+  'ui-ux': 'green',
+  product: 'gray',
+};
 
 const ModalForm = ({
   title,
@@ -53,6 +69,28 @@ const ModalForm = ({
         >
           <Input.TextArea />
         </Form.Item>
+        <Form.Item name="tags" label="Tags">
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="Select tags"
+            dropdownRender={(menu) => <>{menu}</>}
+            tagRender={({ label, value, closable, onClose }) => {
+              const color = tagColors[value] || 'blue';
+              return (
+                <Tag color={color} closable={closable} onClose={onClose}>
+                  {label}
+                </Tag>
+              );
+            }}
+          >
+            {Object.keys(tagColors).map((tag) => (
+              <Option key={tag} value={tag}>
+                {tag}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
         <Form.Item label="Project Image">
           <Input
             type="file"
@@ -60,7 +98,6 @@ const ModalForm = ({
               if (event.target.files && event.target.files.length > 0) {
                 setSelectedFile(event.target.files[0]);
               } else {
-                // Optionally, handle the case where no file is selected
                 console.log('No file selected');
               }
             }}
